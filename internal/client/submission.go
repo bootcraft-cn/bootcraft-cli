@@ -5,15 +5,17 @@ import (
 )
 
 type SubmissionStatusResponse struct {
-	ID         string `json:"id"`
-	Status     string `json:"status"`
-	StageSlug  string `json:"stageSlug"`
-	StageName  string `json:"stageName"`
-	CourseSlug string `json:"courseSlug"`
-	Language   string `json:"language"`
-	DurationMs *int   `json:"durationMs"`
-	Logs       string `json:"logs"`
-	CreatedAt  string `json:"createdAt"`
+	ID            string `json:"id"`
+	Status        string `json:"status"`
+	StageSlug     string `json:"stageSlug"`
+	StageName     string `json:"stageName"`
+	StagePosition int    `json:"stagePosition"`
+	CourseSlug    string `json:"courseSlug"`
+	RepoID        string `json:"repoId"`
+	Language      string `json:"language"`
+	DurationMs    *int   `json:"durationMs"`
+	Logs          string `json:"logs"`
+	CreatedAt     string `json:"createdAt"`
 }
 
 func (c *Client) GetSubmissionStatus(id string) (*SubmissionStatusResponse, error) {

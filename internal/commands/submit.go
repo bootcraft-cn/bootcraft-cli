@@ -2,6 +2,8 @@ package commands
 
 import (
 	"bufio"
+	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -123,34 +125,59 @@ func SubmitCommand(args []string) error {
 	ui.Printf("📋 Stage: %s「%s」\n", submitResp.StageSlug, submitResp.StageName)
 
 	// 7. Watch evaluation
-	ui.Println("⏳ 评测中...")
-	result, err := watchSubmission(c, submitResp.SubmissionID)
+	result, skipLogs, err := watchSubmission(c, submitResp.SubmissionID)
 	if err != nil {
 		return err
 	}
 
 	// 8. Render result
-	return renderResult(result)
+	return renderResult(result, skipLogs)
 }
 
-func watchSubmission(c *client.Client, submissionID string) (*client.SubmissionStatusResponse, error) {
+func watchSubmission(c *client.Client, submissionID string) (*client.SubmissionStatusResponse, bool, error) {
 	tokenResp, err := c.GetTriggerToken(submissionID)
 	if err != nil {
 		ui.Warn("实时日志不可用，切换到轮询模式")
-		return pollSubmission(c, submissionID)
+		result, err := pollSubmission(c, submissionID)
+		return result, false, err
 	}
 
 	result, streamErr := streamEvalLogs(c, submissionID, tokenResp.TriggerRunID, tokenResp.PublicAccessToken)
 	if streamErr != nil {
 		ui.Warn("SSE 连接中断，切换到轮询模式")
-		return pollSubmission(c, submissionID)
+		result, err := pollSubmission(c, submissionID)
+		return result, false, err
 	}
-	return result, nil
+	return result, true, nil
 }
 
 func streamEvalLogs(c *client.Client, submissionID, runID, accessToken string) (*client.SubmissionStatusResponse, error) {
-	url := fmt.Sprintf("https://api.trigger.dev/realtime/v1/runs/%s/streams/eval-logs", runID)
-	req, err := http.NewRequest("GET", url, nil)
+	// Context cancelled 3s after evaluation completes, giving SSE time to flush remaining logs
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var finalResult *client.SubmissionStatusResponse
+	go func() {
+		deadline := time.Now().Add(120 * time.Second)
+		for time.Now().Before(deadline) {
+			time.Sleep(3 * time.Second)
+			status, err := c.GetSubmissionStatus(submissionID)
+			if err != nil {
+				continue
+			}
+			if client.IsTerminalStatus(status.Status) {
+				finalResult = status
+				// Grace period: let SSE flush remaining log chunks before cancelling
+				time.Sleep(3 * time.Second)
+				cancel()
+				return
+			}
+		}
+		cancel()
+	}()
+
+	sseURL := fmt.Sprintf("https://api.trigger.dev/realtime/v1/streams/%s/eval-logs", runID)
+	req, err := http.NewRequestWithContext(ctx, "GET", sseURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -160,34 +187,47 @@ func streamEvalLogs(c *client.Client, submissionID, runID, accessToken string) (
 
 	sseClient := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := sseClient.Do(req)
-	if err != nil {
+	if err != nil && ctx.Err() == nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("SSE status %d", resp.StatusCode)
-	}
-
-	scanner := bufio.NewScanner(resp.Body)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "data: ") {
-			chunk := strings.TrimPrefix(line, "data: ")
-			if chunk == "[DONE]" {
-				break
+	if resp != nil {
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return nil, fmt.Errorf("SSE status %d", resp.StatusCode)
+		}
+		spinner := ui.NewSpinner("评测中")
+		firstLine := true
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "data: ") {
+				if firstLine {
+					spinner.Stop()
+					firstLine = false
+				}
+				chunk := strings.TrimPrefix(line, "data: ")
+				var text string
+				if jsonErr := json.Unmarshal([]byte(chunk), &text); jsonErr == nil {
+					fmt.Print(text)
+				} else {
+					fmt.Print(chunk)
+				}
 			}
-			fmt.Print(chunk)
+		}
+		if firstLine {
+			spinner.Stop()
 		}
 	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
 
+	if finalResult != nil {
+		return finalResult, nil
+	}
 	return c.GetSubmissionStatus(submissionID)
 }
 
 func pollSubmission(c *client.Client, submissionID string) (*client.SubmissionStatusResponse, error) {
+	spinner := ui.NewSpinner("评测中")
+	defer spinner.Stop()
 	deadline := time.Now().Add(120 * time.Second)
 	for time.Now().Before(deadline) {
 		status, err := c.GetSubmissionStatus(submissionID)
@@ -197,13 +237,12 @@ func pollSubmission(c *client.Client, submissionID string) (*client.SubmissionSt
 		if client.IsTerminalStatus(status.Status) {
 			return status, nil
 		}
-		ui.Print(".")
 		time.Sleep(2 * time.Second)
 	}
 	return nil, errors.New("评测超时，请稍后在网页查看结果")
 }
 
-func renderResult(result *client.SubmissionStatusResponse) error {
+func renderResult(result *client.SubmissionStatusResponse, skipLogs bool) error {
 	fmt.Println() // blank line before result
 	durationStr := ""
 	if result.DurationMs != nil {
@@ -213,17 +252,22 @@ func renderResult(result *client.SubmissionStatusResponse) error {
 	switch result.Status {
 	case "success":
 		ui.Success(fmt.Sprintf("✅ %s「%s」通过！%s", result.StageSlug, result.StageName, durationStr))
+		if result.StagePosition > 0 && result.RepoID != "" {
+			fmt.Println()
+			url := fmt.Sprintf("https://www.bootcraft.cn/courses/%s/stages/%d?repo=%s", result.CourseSlug, result.StagePosition, result.RepoID)
+			ui.Info(fmt.Sprintf("👉 前往网页点击「完成本关」解锁下一关：%s", url))
+		}
 		return nil
 	case "failure":
 		ui.Error(fmt.Sprintf("❌ %s「%s」未通过%s", result.StageSlug, result.StageName, durationStr))
-		if result.Logs != "" {
+		if !skipLogs && result.Logs != "" {
 			fmt.Println()
 			fmt.Println(result.Logs)
 		}
 		return errors.New("评测未通过")
 	case "error":
 		ui.Error(fmt.Sprintf("💥 评测出错%s", durationStr))
-		if result.Logs != "" {
+		if !skipLogs && result.Logs != "" {
 			fmt.Println()
 			fmt.Println(result.Logs)
 		}

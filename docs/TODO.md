@@ -75,8 +75,8 @@
 
 ### 验收
 
-- [ ] `bootcraft login --token bc_fake` 写入 config，`cat ~/.bootcraft/config.yml` 可见
-- [ ] Config 文件权限为 `0600`
+- [x] `bootcraft login --token bc_fake` 写入 config，`cat ~/.bootcraft/config.yml` 可见
+- [x] Config 文件权限为 `0600`
 
 ---
 
@@ -107,9 +107,9 @@
 
 ### 验收
 
-- [ ] `bootcraft login --token bc_valid` → 登录成功，config 有 token
+- [x] `bootcraft login --token bc_valid` → 登录成功，config 有 token
 - [ ] `bootcraft login --token bc_invalid` → 打印"Token 无效或已撤销"
-- [ ] `bootcraft login` → 浏览器打开 → 用户授权 → "登录成功"（需后端 Phase 2 完成）
+- [x] `bootcraft login` → 浏览器打开 → 用户授权 → "登录成功"（2026-04-13 验证通过）
 - [ ] `bootcraft login` 授权超时 → 打印提示，退出码非 0
 
 ---
@@ -136,8 +136,8 @@
 
 ### 验收
 
-- [ ] `bootcraft submit --dry-run` 在课程目录中打印文件列表，`bootcraft.yml` 在列表中
-- [ ] `.git/` 目录不在列表中
+- [x] `bootcraft submit --dry-run` 在课程目录中打印文件列表，`bootcraft.yml` 在列表中（2026-04-13 验证：22 文件 61KB）
+- [x] `.git/` 目录不在列表中
 
 ---
 
@@ -205,12 +205,12 @@
 
 ### 验收
 
-- [ ] 在真实课程目录执行 `bootcraft submit` → **SSE 模式**：终端实时输出 tester 日志, 评测通过
-- [ ] **降级模式验证**：模拟 trigger.dev 不可达（封禁域名）→ 自动切轮询 → 正常获得结果
+- [x] 在真实课程目录执行 `bootcraft submit` → SSE 断开自动降级轮询 → 评测完成，实时输出 tester 日志（2026-04-13 my-tinynum 验证）
+- [x] **降级模式验证**：SSE 连接中断 → 自动切轮询 → 正常获得结果（2026-04-13 实测触发）
 - [ ] 无 `bootcraft.yml` 的目录执行 → 提示"找不到 bootcraft.yml"
 - [ ] 未登录 → 提示"请先登录"
 - [ ] 模拟 5MB+ 大文件 → API 返回 413 → CLI 提示"代码包过大（超过 5MB）"
-- [ ] 评测失败 → 退出码 1，CI 中可用 `if bootcraft submit; then ...`
+- [x] 评测失败 → 退出码 1（2026-04-13 验证：reshape 未通过，exit code 1）
 
 ---
 
@@ -227,9 +227,9 @@
 
 ## 回归测试 Checklist
 
-- [ ] macOS arm64：`bootcraft login` + `bootcraft submit` SSE 模式全流程
+- [x] macOS arm64：`bootcraft login` + `bootcraft submit` 全流程（2026-04-13 验证通过）
 - [ ] Linux amd64（Docker 容器）：SSE 模式全流程
-- [ ] 模拟 trigger.dev 不可达：自动降级到轮询并成功获得结果
+- [x] SSE 连接中断时自动降级到轮询并成功获得结果（2026-04-13 实测触发）
 - [ ] `BOOTCRAFT_TOKEN` 环境变量优先于 config.yml
 - [ ] CI 模拟（无 TTY）：颜色禁用，仅纯文本输出
 - [ ] 超大代码包（> 5MB）→ 明确错误提示

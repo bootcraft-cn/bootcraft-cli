@@ -1,6 +1,7 @@
 # Build output
 bin/
 dist/
+bootcraft
 
 # IDE
 .idea/
