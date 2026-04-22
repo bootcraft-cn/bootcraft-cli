@@ -9,9 +9,8 @@ import (
 func TestSaveAndLoad(t *testing.T) {
 	// Override config dir for testing
 	tmpDir := t.TempDir()
-	origHome := os.Getenv("HOME")
 	t.Setenv("HOME", tmpDir)
-	defer os.Setenv("HOME", origHome)
+	t.Setenv("USERPROFILE", tmpDir) // Windows uses USERPROFILE
 
 	cfg := &Config{
 		Token:  "bc_test123",
@@ -45,6 +44,7 @@ func TestSaveAndLoad(t *testing.T) {
 func TestLoadNonExistent(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir) // Windows uses USERPROFILE
 
 	cfg, err := Load()
 	if err != nil {
