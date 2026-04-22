@@ -27,6 +27,17 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      - name: Refuse to run on public repositories
+        env:
+          IS_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          if [ "$IS_PRIVATE" != "true" ]; then
+            echo "::error::此仓库为 public,Bootcraft 仅对 private 仓库进行评测。"
+            echo "请将仓库改为 Private (Settings → General → Danger Zone → Change visibility),"
+            echo "以避免你的解题代码被公开搜索到、影响其他学员的学习体验。"
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
