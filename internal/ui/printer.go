@@ -12,11 +12,11 @@ import (
 )
 
 var (
-	isTTY   bool
-	green   = color.New(color.FgGreen)
-	red     = color.New(color.FgRed)
-	yellow  = color.New(color.FgYellow)
-	cyan    = color.New(color.FgCyan)
+	isTTY  bool
+	green  = color.New(color.FgGreen)
+	red    = color.New(color.FgRed)
+	yellow = color.New(color.FgYellow)
+	cyan   = color.New(color.FgCyan)
 )
 
 func init() {
@@ -31,19 +31,19 @@ func IsTTY() bool {
 }
 
 func Success(msg string) {
-	green.Fprintln(os.Stderr, msg)
+	_, _ = green.Fprintln(os.Stderr, msg)
 }
 
 func Error(msg string) {
-	red.Fprintln(os.Stderr, msg)
+	_, _ = red.Fprintln(os.Stderr, msg)
 }
 
 func Warn(msg string) {
-	yellow.Fprintln(os.Stderr, msg)
+	_, _ = yellow.Fprintln(os.Stderr, msg)
 }
 
 func Info(msg string) {
-	cyan.Fprintln(os.Stderr, msg)
+	_, _ = cyan.Fprintln(os.Stderr, msg)
 }
 
 func Print(msg string) {

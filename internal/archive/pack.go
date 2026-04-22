@@ -13,19 +13,19 @@ import (
 )
 
 var alwaysExcludeDirs = map[string]bool{
-	".git":          true,
-	"__pycache__":   true,
-	".venv":         true,
-	"venv":          true,
-	"node_modules":  true,
-	"dist":          true,
-	".next":         true,
-	".nuxt":         true,
-	"target":        true,
-	"build":         true,
-	"out":           true,
-	".gradle":       true,
-	"vendor":        true,
+	".git":         true,
+	"__pycache__":  true,
+	".venv":        true,
+	"venv":         true,
+	"node_modules": true,
+	"dist":         true,
+	".next":        true,
+	".nuxt":        true,
+	"target":       true,
+	"build":        true,
+	"out":          true,
+	".gradle":      true,
+	"vendor":       true,
 }
 
 var alwaysExcludeExts = map[string]bool{

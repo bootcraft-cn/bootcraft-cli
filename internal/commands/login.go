@@ -38,7 +38,7 @@ func saveAndVerifyToken(cfg *config.Config, baseURL, token string) error {
 	c := client.New(baseURL, token)
 	me, err := c.GetMe()
 	if err != nil {
-		return fmt.Errorf("Token 无效或已撤销: %w", err)
+		return fmt.Errorf("token 无效或已撤销: %w", err)
 	}
 
 	cfg.Token = token

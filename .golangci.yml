@@ -1,24 +1,48 @@
-# Minimal golangci-lint config for bootcraft-cli
+# golangci-lint v2 config for bootcraft-cli
 # Docs: https://golangci-lint.run/usage/configuration/
+
+version: "2"
 
 run:
   timeout: 5m
   go: "1.23"
 
 linters:
-  disable-all: true
+  default: none
   enable:
-    - errcheck      # 未处理的 error
-    - govet         # go vet
-    - ineffassign   # 无效赋值
-    - staticcheck   # 静态分析
-    - unused        # 未使用的代码
-    - gofmt         # 格式
-    - misspell      # 拼写
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+
+  settings:
+    errcheck:
+      # 常见的允许忽略的调用
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (*net/http.Response).Body.Close
+        - (*encoding/json.Encoder).Encode
+        - os.Setenv
+        - os.MkdirAll
+        - os.WriteFile
+
+  exclusions:
+    paths:
+      - bin
+      - dist
+    rules:
+      # 测试代码不要求严格 errcheck（fixture 写文件失败用 panic 也无所谓）
+      - path: _test\.go
+        linters:
+          - errcheck
 
 issues:
-  exclude-dirs:
-    - bin
-    - dist
   max-issues-per-linter: 0
   max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt

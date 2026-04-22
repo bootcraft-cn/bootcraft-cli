@@ -6,8 +6,8 @@ import (
 
 type TriggerTokenResponse struct {
 	PublicAccessToken string `json:"publicAccessToken"`
-	TriggerRunID     string `json:"triggerRunId"`
-	ExpiresAt        string `json:"expiresAt"`
+	TriggerRunID      string `json:"triggerRunId"`
+	ExpiresAt         string `json:"expiresAt"`
 }
 
 func (c *Client) GetTriggerToken(submissionID string) (*TriggerTokenResponse, error) {
