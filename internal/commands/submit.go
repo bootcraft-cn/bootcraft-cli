@@ -119,6 +119,15 @@ func SubmitCommand(args []string) error {
 		CommitMessage: commitMsg,
 	})
 	if err != nil {
+		var apiErr *client.APIError
+		if errors.As(err, &apiErr) {
+			switch {
+			case apiErr.StatusCode == http.StatusUnauthorized || apiErr.Code == "UNAUTHORIZED":
+				return errors.New("\nToken 已失效，请重新登录: bootcraft login")
+			case apiErr.Code == "REPO_NOT_FOUND":
+				return fmt.Errorf("\n未找到仓库记录（课程: %s，语言: %s）\n请先前往 https://www.bootcraft.cn 创建该课程的仓库，再重新提交", meta.Course, meta.Language)
+			}
+		}
 		return fmt.Errorf("\n上传失败: %w", err)
 	}
 	ui.Println(" 完成")
