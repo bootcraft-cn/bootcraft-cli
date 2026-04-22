@@ -132,6 +132,7 @@ func SubmitCommand(args []string) error {
 	}
 	ui.Println(" 完成")
 	ui.Printf("📋 Stage: %s「%s」\n", submitResp.StageSlug, submitResp.StageName)
+	ui.Printf("🆔 Submission: %s\n", submitResp.SubmissionID)
 
 	// 7. Watch evaluation
 	result, skipLogs, err := watchSubmission(c, submitResp.SubmissionID)

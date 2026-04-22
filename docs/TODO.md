@@ -216,12 +216,14 @@
 
 ## Phase 6：发布（0.5 天）
 
+> Pipeline 已就绪：`.github/workflows/release.yml` + `.goreleaser.yaml`。打 `v*.*.*` tag 即触发多平台二进制发布。Homebrew tap 仍待启动。
+
+- [ ] 打 `v0.1.0` tag → 触发 release workflow → 验证 GitHub Releases 页有各平台产物
 - [ ] 创建 `bootcraft-cn/homebrew-tap` GitHub 仓库（`.github/workflows/` 和 `Formula/`）
 - [ ] 配置 goreleaser GitHub token secret（`GORELEASER_TOKEN`、`HOMEBREW_TAP_GITHUB_TOKEN`）
-- [ ] 打 `v0.1.0` tag → 触发 release workflow → 验证 GitHub Releases 页有各平台产物
 - [ ] 验证 `brew install bootcraft-cn/tap/bootcraft-cli` 可安装
 - [ ] 验证 `curl -fsSL https://bootcraft.cn/install.sh | sh` 可安装（需挂载 `install.sh`）
-- [ ] README.md 写安装说明和快速上手
+- [x] README.md 补充完整安装说明和快速上手（2026-04-23 完成）
 
 ---
 

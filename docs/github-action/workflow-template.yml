@@ -1,0 +1,70 @@
+# =============================================================================
+# Bootcraft 自动评测 — 学员 starter 内置 workflow 模板
+# =============================================================================
+# 使用方式:
+#   1. 复制此文件到 starter 仓库的 .github/workflows/bootcraft-submit.yml
+#   2. 学员配置 BOOTCRAFT_TOKEN secret 后,push 自动触发评测
+#   3. 未配置 secret 时,workflow 优雅跳过(不会失败)
+#
+# 文档:bootcraft-cli/docs/github-action/README.md
+# =============================================================================
+
+name: Submit to Bootcraft
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+# 学员快速连续 push 时,只评测最新一次
+concurrency:
+  group: bootcraft-submit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1   # commit_sha + last commit message 已足够
+
+      - name: Skip if BOOTCRAFT_TOKEN secret is missing
+        env:
+          HAS_TOKEN: ${{ secrets.BOOTCRAFT_TOKEN != '' }}
+        run: |
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "::warning::BOOTCRAFT_TOKEN secret 未设置,跳过自动提交。"
+            echo "如需启用:仓库 Settings → Secrets → Actions → 添加 BOOTCRAFT_TOKEN"
+            echo "BOOTCRAFT_SKIP=1" >> $GITHUB_ENV
+          fi
+
+      - name: Install bootcraft CLI
+        if: ${{ env.BOOTCRAFT_SKIP != '1' }}
+        env:
+          # 学员可在 repo Variables 里覆盖固定版本,避免新版破坏
+          BOOTCRAFT_CLI_VERSION: ${{ vars.BOOTCRAFT_CLI_VERSION || 'latest' }}
+        run: |
+          set -e
+          if [ "$BOOTCRAFT_CLI_VERSION" = "latest" ]; then
+            URL="https://github.com/bootcraft-cn/bootcraft-cli/releases/latest/download/bootcraft-linux-amd64"
+          else
+            URL="https://github.com/bootcraft-cn/bootcraft-cli/releases/download/${BOOTCRAFT_CLI_VERSION}/bootcraft-linux-amd64"
+          fi
+          curl -fsSL "$URL" -o /tmp/bootcraft
+          chmod +x /tmp/bootcraft
+          sudo mv /tmp/bootcraft /usr/local/bin/bootcraft
+          bootcraft version
+
+      - name: Submit
+        if: ${{ env.BOOTCRAFT_SKIP != '1' }}
+        env:
+          BOOTCRAFT_TOKEN: ${{ secrets.BOOTCRAFT_TOKEN }}
+          NO_COLOR: "1"
+        run: |
+          bootcraft submit \
+            --force \
+            --message "${{ github.event.head_commit.message }}"

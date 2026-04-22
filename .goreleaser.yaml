@@ -1,0 +1,84 @@
+# GoReleaser configuration for bootcraft-cli
+# Docs: https://goreleaser.com
+#
+# Asset naming is intentionally STABLE (no version suffix) so the GitHub Action
+# auto-submit workflow in student starters can curl
+#   https://github.com/bootcraft-cn/bootcraft-cli/releases/latest/download/bootcraft-linux-amd64
+# directly. See bootcraft-cli/docs/github-action/workflow-template.yml.
+
+version: 2
+
+project_name: bootcraft
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: bootcraft
+    main: ./cmd/bootcraft
+    binary: bootcraft
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/bootcraft-cn/cli/internal/version.Version={{ .Version }}
+      - -X github.com/bootcraft-cn/cli/internal/version.Commit={{ .ShortCommit }}
+
+# Raw binary uploads (no tar.gz) — keeps `curl ... -o bootcraft && chmod +x`
+# usage trivial. Windows variant gets `.exe` appended automatically by GoReleaser.
+archives:
+  - id: binaries
+    formats: [binary]
+    name_template: "bootcraft-{{ .Os }}-{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot-{{ .ShortCommit }}"
+
+release:
+  draft: false
+  prerelease: auto
+  name_template: "v{{ .Version }}"
+  header: |
+    ## bootcraft-cli {{ .Tag }}
+
+    安装(Linux/macOS):
+
+    ```bash
+    OS=$(uname -s | tr '[:upper:]' '[:lower:]')   # linux / darwin
+    ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+    curl -fsSL "https://github.com/bootcraft-cn/bootcraft-cli/releases/download/{{ .Tag }}/bootcraft-${OS}-${ARCH}" \
+      -o /usr/local/bin/bootcraft && chmod +x /usr/local/bin/bootcraft
+    ```
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "Merge pull request"
+      - "Merge branch"
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999

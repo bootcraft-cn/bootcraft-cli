@@ -1,0 +1,24 @@
+# Minimal golangci-lint config for bootcraft-cli
+# Docs: https://golangci-lint.run/usage/configuration/
+
+run:
+  timeout: 5m
+  go: "1.23"
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck      # 未处理的 error
+    - govet         # go vet
+    - ineffassign   # 无效赋值
+    - staticcheck   # 静态分析
+    - unused        # 未使用的代码
+    - gofmt         # 格式
+    - misspell      # 拼写
+
+issues:
+  exclude-dirs:
+    - bin
+    - dist
+  max-issues-per-linter: 0
+  max-same-issues: 0

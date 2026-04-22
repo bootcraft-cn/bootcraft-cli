@@ -1,18 +1,31 @@
 # bootcraft-cli
 
+[![CI](https://github.com/bootcraft-cn/bootcraft-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/bootcraft-cn/bootcraft-cli/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/bootcraft-cn/bootcraft-cli?logo=github)](https://github.com/bootcraft-cn/bootcraft-cli/releases/latest)
+
 Bootcraft 平台命令行工具，用于提交课程代码并获取实时评测结果。
 
 ## 安装
+
+**从 GitHub Release 下载（推荐）：**
+
+```bash
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')   # linux / darwin
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+curl -fsSL "https://github.com/bootcraft-cn/bootcraft-cli/releases/latest/download/bootcraft-${OS}-${ARCH}" \
+  -o /usr/local/bin/bootcraft && chmod +x /usr/local/bin/bootcraft
+bootcraft version
+```
 
 **从源码构建：**
 
 ```bash
 git clone https://github.com/bootcraft-cn/bootcraft-cli.git
-cd cli
+cd bootcraft-cli
 make install
 ```
 
-> 需要 Go 1.22+。`make install` 会将 `bootcraft` 二进制安装到 `$GOPATH/bin`，请确保该目录在 `$PATH` 中。
+> 需要 Go 1.23+。`make install` 会将 `bootcraft` 二进制安装到 `/usr/local/bin/`。
 
 ## 快速上手
 
@@ -90,6 +103,30 @@ bootcraft submit --force
 
 评测通过退出码为 `0`，失败为 `1`，可直接用于 CI 流水线判断。
 
+> 想让 starter 仓库 `git push` 自动触发评测？参见 [docs/github-action/](docs/github-action/) — 内含可复制的 workflow 模板。
+
 ## 配置文件
 
 登录后凭证保存在 `~/.bootcraft/config.yml`（权限 `0600`）。
+
+## 发布流程（维护者）
+
+1. 确认 `main` 上 CI 全绿
+2. 打 tag 并推送：
+
+   ```bash
+   git tag -a v0.1.0 -m "v0.1.0"
+   git push origin v0.1.0
+   ```
+
+3. `.github/workflows/release.yml` 会自动跑 GoReleaser，产出多平台二进制 + checksums，发到 GitHub Releases
+
+4. 学员 starter 的 `bootcraft-submit.yml` 默认拉 `releases/latest/download/bootcraft-linux-amd64`，发布后立刻生效
+
+**本地预演**（无需打 tag、不会 push）：
+
+```bash
+brew install goreleaser
+make snapshot         # 产出到 dist/
+make release-check    # 仅校验配置语法
+```
