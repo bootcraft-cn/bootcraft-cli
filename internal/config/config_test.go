@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -20,13 +21,15 @@ func TestSaveAndLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Check file permissions
+	// Check file permissions (Windows 不支持 POSIX 权限位)
 	info, err := os.Stat(filepath.Join(tmpDir, ".bootcraft", "config.yml"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if perm := info.Mode().Perm(); perm != 0600 {
-		t.Errorf("expected permissions 0600, got %04o", perm)
+	if runtime.GOOS != "windows" {
+		if perm := info.Mode().Perm(); perm != 0600 {
+			t.Errorf("expected permissions 0600, got %04o", perm)
+		}
 	}
 
 	loaded, err := Load()
