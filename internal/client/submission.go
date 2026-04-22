@@ -11,6 +11,7 @@ type SubmissionStatusResponse struct {
 	StageName     string `json:"stageName"`
 	StagePosition int    `json:"stagePosition"`
 	CourseSlug    string `json:"courseSlug"`
+	CourseTrack   string `json:"courseTrack"`
 	RepoID        string `json:"repoId"`
 	Language      string `json:"language"`
 	DurationMs    *int   `json:"durationMs"`

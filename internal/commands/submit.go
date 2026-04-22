@@ -27,6 +27,17 @@ type bootcraftMeta struct {
 	Language string `yaml:"language"`
 }
 
+// trackURLPath maps API track values to web URL path segments.
+// Mirrors bootcraft-web-cn/apps/main/src/config/tracks.ts.
+func trackURLPath(track string) string {
+	switch track {
+	case "system":
+		return "systems"
+	default:
+		return track
+	}
+}
+
 func SubmitCommand(args []string) error {
 	flags := flag.NewFlagSet("submit", flag.ContinueOnError)
 	stage := flags.String("stage", "", "指定评测关卡 (slug)")
@@ -262,9 +273,10 @@ func renderResult(result *client.SubmissionStatusResponse, skipLogs bool) error 
 	switch result.Status {
 	case "success":
 		ui.Success(fmt.Sprintf("✅ %s「%s」通过！%s", result.StageSlug, result.StageName, durationStr))
-		if result.StagePosition > 0 && result.RepoID != "" {
+		if result.StagePosition > 0 && result.CourseSlug != "" && result.CourseTrack != "" && result.Language != "" {
 			fmt.Println()
-			url := fmt.Sprintf("https://www.bootcraft.cn/courses/%s/stages/%d?repo=%s", result.CourseSlug, result.StagePosition, result.RepoID)
+			url := fmt.Sprintf("https://www.bootcraft.cn/courses/%s/%s/repos/%s/stages/%d",
+				trackURLPath(result.CourseTrack), result.CourseSlug, result.Language, result.StagePosition)
 			ui.Info(fmt.Sprintf("👉 前往网页点击「完成本关」解锁下一关：%s", url))
 		}
 		return nil
