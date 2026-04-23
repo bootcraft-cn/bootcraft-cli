@@ -199,3 +199,64 @@ func TestIsTerminalStatus(t *testing.T) {
 		t.Error("evaluating should not be terminal")
 	}
 }
+
+func TestGetTriggerToken_DeserializesStreamURL(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			t.Errorf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Path != "/v1/cli/submissions/sub-abc/trigger-token" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"success": true,
+			"data": map[string]any{
+				"publicAccessToken": "tok_public_xyz",
+				"triggerRunId":      "run_abc123",
+				"expiresAt":         "2026-04-23T12:00:00Z",
+				"streamUrl":         "https://api.trigger.dev/realtime/v1/streams/run_abc123/eval-logs",
+			},
+		})
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "test-token")
+	resp, err := c.GetTriggerToken("sub-abc")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.PublicAccessToken != "tok_public_xyz" {
+		t.Errorf("PublicAccessToken: got %q, want %q", resp.PublicAccessToken, "tok_public_xyz")
+	}
+	if resp.TriggerRunID != "run_abc123" {
+		t.Errorf("TriggerRunID: got %q, want %q", resp.TriggerRunID, "run_abc123")
+	}
+	if resp.StreamURL != "https://api.trigger.dev/realtime/v1/streams/run_abc123/eval-logs" {
+		t.Errorf("StreamURL: got %q", resp.StreamURL)
+	}
+}
+
+func TestGetTriggerToken_MissingStreamURL_BackwardCompat(t *testing.T) {
+	// Old servers that don't return streamUrl should yield empty string, not an error.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"success": true,
+			"data": map[string]any{
+				"publicAccessToken": "tok_xyz",
+				"triggerRunId":      "run_123",
+				"expiresAt":         "2026-04-23T12:00:00Z",
+				// streamUrl intentionally absent
+			},
+		})
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "test-token")
+	resp, err := c.GetTriggerToken("sub-abc")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StreamURL != "" {
+		t.Errorf("StreamURL should be empty for old server response, got %q", resp.StreamURL)
+	}
+}

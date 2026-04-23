@@ -163,7 +163,7 @@ func watchSubmission(c *client.Client, submissionID string) (*client.SubmissionS
 		return result, false, err
 	}
 
-	result, streamErr := streamEvalLogs(c, submissionID, tokenResp.TriggerRunID, tokenResp.PublicAccessToken)
+	result, streamErr := streamEvalLogs(c, submissionID, tokenResp.StreamURL, tokenResp.PublicAccessToken)
 	if streamErr != nil {
 		ui.Warn("SSE 连接中断，切换到轮询模式")
 		result, err := pollSubmission(c, submissionID)
@@ -172,7 +172,7 @@ func watchSubmission(c *client.Client, submissionID string) (*client.SubmissionS
 	return result, true, nil
 }
 
-func streamEvalLogs(c *client.Client, submissionID, runID, accessToken string) (*client.SubmissionStatusResponse, error) {
+func streamEvalLogs(c *client.Client, submissionID, streamURL, accessToken string) (*client.SubmissionStatusResponse, error) {
 	// Context cancelled 3s after evaluation completes, giving SSE time to flush remaining logs
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -197,7 +197,10 @@ func streamEvalLogs(c *client.Client, submissionID, runID, accessToken string) (
 		cancel()
 	}()
 
-	sseURL := fmt.Sprintf("https://api.trigger.dev/realtime/v1/streams/%s/eval-logs", runID)
+	sseURL := streamURL
+	if sseURL == "" {
+		return nil, fmt.Errorf("stream URL not provided by server")
+	}
 	req, err := http.NewRequestWithContext(ctx, "GET", sseURL, nil)
 	if err != nil {
 		return nil, err
