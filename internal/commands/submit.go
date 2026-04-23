@@ -137,6 +137,10 @@ func SubmitCommand(args []string) error {
 				return errors.New("\nToken 已失效，请重新登录: bootcraft login")
 			case apiErr.Code == "REPO_NOT_FOUND":
 				return fmt.Errorf("\n未找到仓库记录（课程: %s，语言: %s）\n请先前往 https://www.bootcraft.cn 创建该课程的仓库，再重新提交", meta.Course, meta.Language)
+			case apiErr.StatusCode == http.StatusConflict:
+				return fmt.Errorf("\n%s", apiErr.Message)
+			case apiErr.StatusCode == http.StatusForbidden:
+				return fmt.Errorf("\n%s", apiErr.Message)
 			}
 		}
 		return fmt.Errorf("\n上传失败: %w", err)
