@@ -169,7 +169,7 @@ func watchSubmission(c *client.Client, submissionID string) (*client.SubmissionS
 
 	result, streamErr := streamEvalLogs(c, submissionID, tokenResp.StreamURL, tokenResp.PublicAccessToken)
 	if streamErr != nil {
-		ui.Warn("SSE 连接中断，切换到轮询模式")
+		ui.Warn(fmt.Sprintf("SSE 连接中断，切换到轮询模式 (err: %v)", streamErr))
 		result, err := pollSubmission(c, submissionID)
 		return result, false, err
 	}
@@ -221,7 +221,7 @@ func streamEvalLogs(c *client.Client, submissionID, streamURL, accessToken strin
 	if resp != nil {
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
-			return nil, fmt.Errorf("SSE status %d", resp.StatusCode)
+			return nil, fmt.Errorf("SSE status %d (url=%s)", resp.StatusCode, streamURL)
 		}
 		spinner := ui.NewSpinner("评测中")
 		firstLine := true
@@ -234,11 +234,16 @@ func streamEvalLogs(c *client.Client, submissionID, streamURL, accessToken strin
 					firstLine = false
 				}
 				chunk := strings.TrimPrefix(line, "data: ")
+				if chunk == "closed" || chunk == "[DONE]" {
+					break
+				}
 				var text string
 				if jsonErr := json.Unmarshal([]byte(chunk), &text); jsonErr == nil {
-					fmt.Print(text)
-				} else {
-					fmt.Print(chunk)
+					if text != "" {
+						fmt.Println(text)
+					}
+				} else if chunk != "" {
+					fmt.Println(chunk)
 				}
 			}
 		}
@@ -249,6 +254,19 @@ func streamEvalLogs(c *client.Client, submissionID, streamURL, accessToken strin
 
 	if finalResult != nil {
 		return finalResult, nil
+	}
+	// SSE ended before the poller saw a terminal status (callback not yet written to DB).
+	// Poll briefly until we get a terminal status.
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		status, err := c.GetSubmissionStatus(submissionID)
+		if err != nil {
+			return nil, err
+		}
+		if client.IsTerminalStatus(status.Status) {
+			return status, nil
+		}
+		time.Sleep(1 * time.Second)
 	}
 	return c.GetSubmissionStatus(submissionID)
 }
@@ -295,6 +313,10 @@ func renderResult(result *client.SubmissionStatusResponse, skipLogs bool) error 
 		}
 		return errors.New("评测未通过")
 	case "error":
+		if strings.Contains(result.Logs, "EVAL_SYSTEM_BUSY") {
+			ui.Warn("⏳ 评测系统繁忙，请30秒后再试")
+			return errors.New("评测系统繁忙，请30秒后再试")
+		}
 		ui.Error(fmt.Sprintf("💥 评测出错%s", durationStr))
 		if !skipLogs && result.Logs != "" {
 			fmt.Println()
